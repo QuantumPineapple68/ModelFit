@@ -77,6 +77,8 @@ val modelFit = ModelFit.create(
 )
 ```
 
+> **Zero-Effort Hardware Calibration**: On initialization, the SDK silently runs a 20ms DRAM memory-bandwidth micro-probe in the background once per install. It measures the phone's memory bus speed ($B$ in GB/s) and contributes it to the edge database with zero extra lines of code.
+
 ### 2. Request a Model Recommendation
 
 ```kotlin

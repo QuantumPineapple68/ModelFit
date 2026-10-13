@@ -11,7 +11,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.util.UUID
 
 /**
@@ -235,37 +234,6 @@ class ModelFit private constructor(
         }
 
         return result
-    }
-
-    /**
-     * Downloads a recommended model file to local storage and verifies its cryptographic SHA-256 hash.
-     * Automatically logs model adoption to ModelFit edge backend in the background.
-     *
-     * @param model The recommended model to download.
-     * @param targetDir Destination directory (defaults to app files/models).
-     * @param onProgress Optional progress callback delivering (bytesDownloaded, totalBytes).
-     * @return Verified model [File].
-     */
-    suspend fun download(
-        model: RecommendedModel,
-        targetDir: File = File(context.filesDir, "models"),
-        onProgress: ((bytesDownloaded: Long, totalBytes: Long) -> Unit)? = null
-    ): File {
-        val file = dev.modelfit.net.ModelDownloader.download(model, targetDir, onProgress)
-        // Silently report model adoption to backend
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val device = DeviceProbe.probe(context)
-                val metrics = RunMetrics(
-                    modelId = model.modelId,
-                    quant = model.quant,
-                    decodeTps = model.expected.decodeTps,
-                    peakRamMb = model.expected.peakRamMb
-                )
-                api.reportResults(installId, device, listOf(metrics), source = "sdk-download")
-            } catch (_: Exception) {}
-        }
-        return file
     }
 
     /**
