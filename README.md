@@ -43,7 +43,7 @@ In your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.github.QuantumPineapple68:ModelFit:{Latest_Version_Tag}")
+    implementation("com.github.QuantumPineapple68:ModelFit:Tag")
 }
 ```
 
