@@ -102,4 +102,40 @@ class ModelFitApi(private val config: ModelFitConfig) {
         }
         return@withContext null
     }
+
+    suspend fun reportResults(
+        installId: String,
+        device: DeviceInfo,
+        metrics: List<dev.modelfit.RunMetrics>,
+        source: String = "sdk"
+    ): Boolean = withContext(Dispatchers.IO) {
+        val payload = Dtos.buildIngestRequestBody(installId, device, metrics, source)
+        val fullUrl = "${config.baseUrl.trimEnd('/')}/v1/results"
+        var conn: HttpURLConnection? = null
+        try {
+            val url = URL(fullUrl)
+            conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = config.timeoutMs
+                readTimeout = config.timeoutMs
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+                if (!config.apiKey.isNullOrBlank()) {
+                    setRequestProperty("X-Api-Key", config.apiKey)
+                }
+            }
+
+            OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { writer ->
+                writer.write(payload)
+                writer.flush()
+            }
+
+            return@withContext (conn.responseCode in 200..299)
+        } catch (_: Exception) {
+            return@withContext false
+        } finally {
+            conn?.disconnect()
+        }
+    }
 }

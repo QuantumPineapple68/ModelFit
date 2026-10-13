@@ -55,6 +55,54 @@ object Dtos {
         return root.toString()
     }
 
+    fun buildIngestRequestBody(
+        installId: String,
+        device: DeviceInfo,
+        metrics: List<dev.modelfit.RunMetrics>,
+        source: String = "sdk"
+    ): String {
+        val root = JSONObject()
+        root.put("protocol_version", 2)
+        root.put("source", source)
+        root.put("install_id", installId)
+
+        val devObj = JSONObject().apply {
+            put("soc", device.socNormalized)
+            put("soc_raw", device.soc)
+            put("manufacturer", device.manufacturer)
+            put("device_model", device.model)
+            put("gpu_name", "unknown")
+            put("total_ram_mb", device.totalRamMb)
+            put("avail_ram_mb", device.availRamMb)
+            put("cpu_cores", device.cpuCores)
+            put("android_version", device.apiLevel)
+        }
+        root.put("device", devObj)
+
+        val resultsArr = JSONArray()
+        for (m in metrics) {
+            val rObj = JSONObject().apply {
+                put("id", m.id)
+                put("model_id", m.modelId)
+                put("quant", m.quant)
+                put("compute_backend", m.computeBackend)
+                put("engine_framework", m.engineFramework)
+                put("decode_tps", m.decodeTps)
+                m.prefillTps?.let { put("prefill_tps", it) }
+                m.ttftMs?.let { put("ttft_ms", it) }
+                m.peakRamMb?.let { put("peak_ram_mb", it) }
+                m.promptTokens?.let { put("prompt_tokens", it) }
+                m.decodeTokens?.let { put("decode_tokens", it) }
+                m.contextLength?.let { put("context_length", it) }
+                put("created_at", m.createdAt)
+            }
+            resultsArr.put(rObj)
+        }
+        root.put("results", resultsArr)
+
+        return root.toString()
+    }
+
     fun parseRecommendationResponse(jsonString: String, source: RecommendationSource = RecommendationSource.NETWORK): Recommendation {
         val root = JSONObject(jsonString)
         val formulaVersion = root.optInt("formula_version", 1)

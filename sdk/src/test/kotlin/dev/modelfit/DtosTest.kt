@@ -113,4 +113,35 @@ class DtosTest {
         assertEquals(rec.items.first().modelId, deserialized.items.first().modelId)
         assertEquals(rec.items.first().expected.decodeTps, deserialized.items.first().expected.decodeTps, 0.01)
     }
+
+    @Test
+    fun `test build ingest request body for crowdsourced telemetry`() {
+        val device = DeviceInfo(
+            soc = "SM7435",
+            socNormalized = "sm7435",
+            manufacturer = "realme",
+            model = "RMX3987",
+            totalRamMb = 7435,
+            availRamMb = 3840,
+            cpuCores = 8,
+            apiLevel = 34,
+            abi = "arm64-v8a"
+        )
+
+        val metrics = listOf(
+            dev.modelfit.RunMetrics(
+                modelId = "llama-3.2-1b-instruct",
+                quant = "Q4_K_M",
+                decodeTps = 11.45,
+                prefillTps = 25.10,
+                peakRamMb = 852.0
+            )
+        )
+
+        val json = Dtos.buildIngestRequestBody("test-install-uuid", device, metrics, source = "sdk")
+        assertTrue("JSON should contain install_id", json.contains("\"install_id\":\"test-install-uuid\""))
+        assertTrue("JSON should contain source sdk", json.contains("\"source\":\"sdk\""))
+        assertTrue("JSON should contain model_id", json.contains("\"model_id\":\"llama-3.2-1b-instruct\""))
+        assertTrue("JSON should contain decode_tps", json.contains("\"decode_tps\":11.45"))
+    }
 }

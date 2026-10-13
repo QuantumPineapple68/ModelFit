@@ -101,6 +101,34 @@ if (bestModel != null) {
 }
 ```
 
+### 3. Automatically Profile & Keep Database Fresh (Active Learning)
+
+When your app runs an inference, wrap it inside `measureInference`. The SDK automatically times the execution, measures RAM delta, and reports the metrics to the backend in the background to keep community calibrations fresh:
+
+```kotlin
+val reply = modelFit.measureInference(
+    modelId = bestModel.modelId,
+    quant = bestModel.quant,
+    decodeTokens = 64,  // Number of tokens emitted
+    promptTokens = 128  // Context length evaluated
+) {
+    // Your actual LLM execution code here:
+    llamaEngine.generate("Tell me a joke")
+}
+```
+
+Or report already-calculated metrics directly:
+
+```kotlin
+modelFit.reportMetrics(
+    modelId = "llama-3.2-1b-instruct",
+    quant = "Q4_K_M",
+    decodeTps = 11.45,
+    prefillTps = 25.10,
+    peakRamMb = 848.0
+)
+```
+
 ---
 
 ## Profiles & Workload Tasks

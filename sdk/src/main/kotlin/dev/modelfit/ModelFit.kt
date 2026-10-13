@@ -1,13 +1,17 @@
 package dev.modelfit
 
 import android.content.Context
+import android.os.Debug
 import dev.modelfit.cache.RecCache
 import dev.modelfit.cache.SnapshotStore
 import dev.modelfit.device.DeviceInfo
 import dev.modelfit.device.DeviceProbe
 import dev.modelfit.net.ModelFitApi
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 /**
  * ModelFit Android Client SDK.
@@ -21,6 +25,19 @@ class ModelFit private constructor(
     private val api = ModelFitApi(config)
     private val cache = RecCache(context, config)
     private val snapshotStore = SnapshotStore(context)
+
+    /**
+     * Unique anonymous installation ID for this client instance.
+     */
+    val installId: String by lazy {
+        val prefs = context.getSharedPreferences("modelfit_prefs", Context.MODE_PRIVATE)
+        var id = prefs.getString("install_id", null)
+        if (id.isNullOrBlank()) {
+            id = UUID.randomUUID().toString()
+            prefs.edit().putString("install_id", id).apply()
+        }
+        id
+    }
 
     /**
      * Recommends the highest-utility Large Language Model for the current physical device.
@@ -89,6 +106,105 @@ class ModelFit private constructor(
 
         // Tier 4: Guaranteed Safe Default Fallback
         return@withContext getHardcodedFallback(device)
+    }
+
+    /**
+     * Reports runtime inference metrics back to the ModelFit edge database.
+     *
+     * Contributes real-world telemetry to continuously update the SoC physics calibrations
+     * and maintain fresh community performance data.
+     *
+     * @param metrics Observed runtime metrics.
+     * @return true if accepted by the backend, false otherwise.
+     */
+    suspend fun reportMetrics(metrics: RunMetrics): Boolean = withContext(Dispatchers.IO) {
+        val device = DeviceProbe.probe(context)
+        return@withContext api.reportResults(installId, device, listOf(metrics), source = "sdk")
+    }
+
+    /**
+     * Convenience method to report runtime inference metrics.
+     */
+    suspend fun reportMetrics(
+        modelId: String,
+        quant: String = "Q4_K_M",
+        decodeTps: Double,
+        prefillTps: Double? = null,
+        peakRamMb: Double? = null,
+        ttftMs: Double? = null,
+        promptTokens: Int? = null,
+        decodeTokens: Int? = null,
+        computeBackend: String = "cpu",
+        engineFramework: String = "llama.cpp"
+    ): Boolean {
+        val metrics = RunMetrics(
+            modelId = modelId,
+            quant = quant,
+            decodeTps = decodeTps,
+            prefillTps = prefillTps,
+            peakRamMb = peakRamMb,
+            ttftMs = ttftMs,
+            promptTokens = promptTokens,
+            decodeTokens = decodeTokens,
+            computeBackend = computeBackend,
+            engineFramework = engineFramework
+        )
+        return reportMetrics(metrics)
+    }
+
+    /**
+     * Measures execution duration and memory footprint during an inference block,
+     * and automatically uploads the performance telemetry to ModelFit in the background.
+     *
+     * @param modelId Model identifier (e.g. "llama-3.2-1b-instruct").
+     * @param quant Model quantization (e.g. "Q4_K_M").
+     * @param decodeTokens Number of tokens emitted during generation.
+     * @param promptTokens Number of tokens evaluated during prompt processing.
+     * @param reportInBackground Whether to upload observed metrics asynchronously (default: true).
+     * @param block The LLM generation code to execute and profile.
+     * @return Result of the [block] execution.
+     */
+    suspend fun <T> measureInference(
+        modelId: String,
+        quant: String = "Q4_K_M",
+        decodeTokens: Int,
+        promptTokens: Int? = null,
+        reportInBackground: Boolean = true,
+        block: suspend () -> T
+    ): T {
+        val ramBefore = Debug.getNativeHeapAllocatedSize()
+        val startTimeNs = System.nanoTime()
+
+        val result = block()
+
+        val durationNs = System.nanoTime() - startTimeNs
+        val ramAfter = Debug.getNativeHeapAllocatedSize()
+
+        val durationSeconds = durationNs / 1_000_000_000.0
+        val decodeTps = if (durationSeconds > 0 && decodeTokens > 0) {
+            decodeTokens / durationSeconds
+        } else {
+            0.0
+        }
+
+        val peakRamMb = maxOf(0L, ramAfter - ramBefore) / (1024.0 * 1024.0)
+
+        if (reportInBackground && decodeTps > 0.05) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    reportMetrics(
+                        modelId = modelId,
+                        quant = quant,
+                        decodeTps = decodeTps,
+                        peakRamMb = if (peakRamMb > 10.0) peakRamMb else null,
+                        promptTokens = promptTokens,
+                        decodeTokens = decodeTokens
+                    )
+                } catch (_: Exception) {}
+            }
+        }
+
+        return result
     }
 
     /**
