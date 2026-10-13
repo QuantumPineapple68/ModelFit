@@ -139,22 +139,17 @@ class ModelFit private constructor(
 
     /**
      * Reports runtime inference metrics back to the ModelFit edge database.
-     *
-     * Contributes real-world telemetry to continuously update the SoC physics calibrations
-     * and maintain fresh community performance data.
-     *
-     * @param metrics Observed runtime metrics.
-     * @return true if accepted by the backend, false otherwise.
+     * Internal: Invoked by [measureInference] or internal telemetry pipelines to prevent forged/fake telemetry.
      */
-    suspend fun reportMetrics(metrics: RunMetrics): Boolean = withContext(Dispatchers.IO) {
+    internal suspend fun reportMetrics(metrics: RunMetrics): Boolean = withContext(Dispatchers.IO) {
         val device = DeviceProbe.probe(context)
         return@withContext api.reportResults(installId, device, listOf(metrics), source = "sdk")
     }
 
     /**
-     * Convenience method to report runtime inference metrics.
+     * Convenience method to report runtime inference metrics internally.
      */
-    suspend fun reportMetrics(
+    internal suspend fun reportMetrics(
         modelId: String,
         quant: String = "Q4_K_M",
         decodeTps: Double,
