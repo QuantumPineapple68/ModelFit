@@ -15,7 +15,7 @@
 - **Extreme Fragmentation**: Over 25,000+ Android models exist. You cannot manually test every phone-model combination.
 
 **ModelFit solves this using empirical physics scaling laws**:
-$$\frac{1}{\text{decode\_tps}} = a + \frac{\text{size\_GB}}{B}$$
+$$\frac{1}{\text{Decode TPS}} = a + \frac{\text{Size (GB)}}{B}$$
 By extracting the chip's usable DRAM memory bandwidth ($B$, in GB/s) and scheduling latency ($a$), ModelFit accurately predicts model speed (~83% accuracy) and guarantees that the recommended model runs safely within your user's physical RAM budget.
 
 ---
@@ -109,10 +109,10 @@ if (bestModel != null) {
 
 | Profile | Focus | Constraints |
 |---|---|---|
-| `Profile.Balanced` | Best balance of speed & intelligence | Min 5 tok/s, max 30s latency, $\le 50\%$ RAM budget |
-| `Profile.Speed` | Priority on speed | Min 8 tok/s, max 20s latency, $\le 50\%$ RAM budget |
-| `Profile.Quality` | Priority on reasoning & model size | Min 3 tok/s, max 60s latency, $\le 50\%$ RAM budget |
-| `Profile.LowMemory` | Priority on preserving system RAM | Min 5 tok/s, max 30s latency, $\le 35\%$ RAM budget |
+| `Profile.Balanced` | Best balance of speed & intelligence | Min 5 tok/s, max 30s latency, ≤ 50% RAM budget |
+| `Profile.Speed` | Priority on speed | Min 8 tok/s, max 20s latency, ≤ 50% RAM budget |
+| `Profile.Quality` | Priority on reasoning & model size | Min 3 tok/s, max 60s latency, ≤ 50% RAM budget |
+| `Profile.LowMemory` | Priority on preserving system RAM | Min 5 tok/s, max 30s latency, ≤ 35% RAM budget |
 
 ### Custom Developer Profiles
 
@@ -149,7 +149,7 @@ flowchart TD
 1. **Live Network Call**: Queries Cloudflare edge for up-to-the-minute benchmarks and Hugging Face models.
 2. **Local Cache Hit**: Returns instantly from `SharedPreferences` if probed within the 7-day TTL.
 3. **Local Offline Snapshot Evaluation**: Runs the exact same physics bandwidth equations directly on-device using the bundled `snapshot.json`.
-4. **Hardcoded Fallback**: Returns verified `qwen2.5-0.5b-instruct` (guaranteed safe for any Android phone with $\ge 2$ GB RAM).
+4. **Hardcoded Fallback**: Returns verified `qwen2.5-0.5b-instruct` (guaranteed safe for any Android phone with ≥ 2 GB RAM).
 
 ---
 
